@@ -1,0 +1,45 @@
+General information:
+
+  The AUSMT scripts can be called via the package postinst/prerm scripts,
+  scripts for patches and themes are located under the patches/ and themes/
+  folders. The scripts only need one parameter which is the path for the
+  directory holding the patches etc. to be installed into the system. The
+  structure of the directory can be seen below.
+
+Directory structure:
+
+  # This is the structure of the patch/theme dir, any of these can be present,
+  # , i.e. not all needed. The AUSMT script will install what it finds. 
+
+  binary_patches 				# Directory that contains all binary patches
+  files_additional 			# Directory containing additional system files
+  files_replaceable			# Directory containinig replaceable system files
+  tweaks_prefs.json			# Preferences file for Tweaks service
+  unified_diff.patch		# The patch file in unified diff format
+  packages_cache.list		# Cache file that speads up the md5sum fetching
+
+Other related directories:
+
+  # These are meant for apps taking use of patches/themes so that they
+  # dont need to be run outside of jail. Even if these gets deleted/modified
+  # everything just works or can be recovered with build in recovery.
+
+  # For example Tweaks will have means for user to install his own .patch
+  # files or modify the installed patch files and test them. These should 
+  # make modifying of existing patches easy.
+
+  # Theme Manager already have means for user to create custom theme from
+  # installed themes and allows easy way of user to modify the installed
+  # themes through these dirs.
+
+  /media/internal/.patches/
+    .current (special dir for Tweaks)
+
+    <id> (user patches installed via patch files for example)
+    .<id> (system themes installed via ipk's for example)
+
+  /media/internal/.themes/
+    .current (special dir for Theme Manager)
+
+    <id> (user themes installed via zip's for example)
+    .<id> (system themes installed via ipk's for example)
