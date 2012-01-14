@@ -1,0 +1,25 @@
+#!/bin/sh
+
+APP_ID=
+
+APP_DIR=/usr/palm/applications/${APP_ID}
+
+PATCHES_DIR=/media/internal/.patches
+
+if [ -z ${IPKG_OFFLINE_ROOT} ]; then
+  IPKG_OFFLINE_ROOT=/media/cryptofs/apps
+fi
+
+/media/cryptofs/apps/usr/bin/ausmt-install ${IPKG_OFFLINE_ROOT}${APP_DIR}
+
+if [ ${?} != "0" ]; then
+  exit 1
+fi
+
+mkdir -p ${PATCHES_DIR} >/dev/null 2>&1
+
+rm -rf ${PATCHES_DIR}/.${APP_ID} >/dev/null 2>&1
+
+cp -a ${IPKG_OFFLINE_ROOT}${APP_DIR} ${PATCHES_DIR}/.${APP_ID}
+
+exit 0

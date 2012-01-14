@@ -1,0 +1,19 @@
+#!/bin/sh
+
+APP_ID=
+
+APP_DIR=/usr/palm/applications/${APP_ID}
+
+THEMES_DIR=/media/internal/.themes
+
+if [ -z ${IPKG_OFFLINE_ROOT} ]; then
+  IPKG_OFFLINE_ROOT=/media/cryptofs/apps
+fi
+
+mkdir -p ${THEMES_DIR} >/dev/null 2>&1
+
+rm -rf ${THEMES_DIR}/.${APP_ID} >/dev/null 2>&1
+
+cp -a ${IPKG_OFFLINE_ROOT}${APP_DIR} ${THEMES_DIR}/.${APP_ID}
+
+exit 0
