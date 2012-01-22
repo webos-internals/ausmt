@@ -37,13 +37,9 @@ Other related directories:
   # themes through these dirs.
 
   /media/internal/.patches/
-    .current (special dir for Tweaks)
-
     <id> (user patches installed via patch files for example)
     .<id> (system themes installed via ipk's for example)
 
   /media/internal/.themes/
-    .current (special dir for Theme Manager)
-
     <id> (user themes installed via zip's for example)
     .<id> (system themes installed via ipk's for example)
