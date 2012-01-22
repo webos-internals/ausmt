@@ -20,7 +20,7 @@ PACKAGES_FILE=packages_cache.list
 # Here starts the part where all the magic happens
 #
 
-VERSION=aupt-5
+VERSION=ausmt-1
 
 IPKG_INFO_DIR=/usr/lib/ipkg/info
 
@@ -34,7 +34,7 @@ fi
 
 PATCH_LOG_FILE=/media/internal/webos-ausmt.log
 PATCH_CONTROL_DIR=/var/usr/lib/.webosinternals.patches
-ATCH_PACKAGES_LIST=/media/internal/.webosinternals.patches.packages
+PATCH_PACKAGES_LIST=/media/internal/.webosinternals.patches.packages
 
 TWEAKS_PREFERENCES_DIR=/media/cryptofs/apps/usr/palm/services/org.webosinternals.tweaks.prefs/preferences
 
@@ -166,7 +166,7 @@ check_packages_file() {
       if [ ! -z "${md5sums_line}" ]; then
         pkg_package="${p}"
 
-        break;
+        break
       fi
     done
   fi
@@ -200,7 +200,7 @@ check_cryptofs_lists() {
 
 verify_text_patch() {
   if [ -f ${APP_DIR}/${PATCH_NAME} ]; then
-    FILE_LIST=" "`${LSDIFF_EXEC} ${APP_DIR}/${PATCH_NAME}`
+    FILE_LIST=" "`${LSDIFF_EXEC} --addprefix=/ --strip=1 ${APP_DIR}/${PATCH_NAME}`
 
     for file in ${FILE_LIST} ; do
       find_palm_md5sum
@@ -337,7 +337,7 @@ remove_text_patch() {
       ${PATCH_EXEC} -R -p 1 -d / --no-backup-if-mismatch < ${APP_DIR}/${PATCH_NAME} 2>&1 | tee -a ${PATCH_LOG_FILE}
 
       if [ ${?} -ne 0 ]; then
-        for file in `${LSDIFF_EXEC} ${APP_DIR}/${PATCH_NAME}` ; do
+        for file in `${LSDIFF_EXEC} --addprefix=/ --strip=1 ${APP_DIR}/${PATCH_NAME}` ; do
           if [ -f ${file}.rej ]; then
             rm -f ${file}.rej
           fi
@@ -555,7 +555,7 @@ clean_backup_files() {
 #
 
 if [ ! -f ${PATCH_LOG_FILE} ]; then
-  echo "*** Patch Log Created by prerm $(date) ***" > ${PATCH_LOG_FILE}
+  echo "*** Patch Log Created by remove $(date) ***" > ${PATCH_LOG_FILE}
 fi
 
 mount -o rw,remount / | tee -a ${PATCH_LOG_FILE} 1>&2
@@ -598,7 +598,7 @@ if [ ! -x ${BSPATCH_EXEC} ]; then
 fi
 
 if [ -z ${APP_DIR} ]; then
-  echo "ERROR: APP_DIR must be set in postinst" | tee -a ${PATCH_LOG_FILE} 1>&2
+  echo "ERROR: APP_DIR must be given for removing" | tee -a ${PATCH_LOG_FILE} 1>&2
   do_install_failure
 fi
 

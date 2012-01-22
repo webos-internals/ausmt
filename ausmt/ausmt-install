@@ -20,7 +20,7 @@ PACKAGES_FILE=packages_cache.list
 # Here starts the part where all the magic happens
 #
 
-VERSION=aupt-5
+VERSION=ausmt-1
 
 IPKG_INFO_DIR=/usr/lib/ipkg/info
 
@@ -206,7 +206,7 @@ verify_text_patch() {
     echo "----------------------------------" >> ${PATCH_LOG_FILE}
     echo >> ${PATCH_LOG_FILE}
 
-    FILE_LIST=" "`${LSDIFF_EXEC} ${APP_DIR}/${PATCH_NAME}`
+    FILE_LIST=" "`${LSDIFF_EXEC} --addprefix=/ --strip=1 ${APP_DIR}/${PATCH_NAME}`
 
     for file in ${FILE_LIST} ; do
       if [ -f ${file} ]; then
@@ -523,7 +523,7 @@ create_backup_files() {
 #
 
 if [ ! -f ${PATCH_LOG_FILE} ]; then
-  echo "*** Patch Log Created by postinst $(date) ***" > ${PATCH_LOG_FILE}
+  echo "*** Patch Log Created by install $(date) ***" > ${PATCH_LOG_FILE}
 fi
 
 mount -o rw,remount / | tee -a ${PATCH_LOG_FILE} 1>&2
@@ -566,7 +566,7 @@ if [ ! -x ${BSPATCH_EXEC} ]; then
 fi
 
 if [ -z ${APP_DIR} ]; then
-  echo "ERROR: APP_DIR must be set in postinst" | tee -a ${PATCH_LOG_FILE} 1>&2
+  echo "ERROR: APP_DIR must be given for installing" | tee -a ${PATCH_LOG_FILE} 1>&2
   do_install_failure
 fi
 
@@ -580,8 +580,6 @@ if [ ! -f ${APP_DIR}/${PATCH_NAME} ] && [ ! -d ${APP_DIR}/${BSPATCH_DIR} ] && [ 
   do_install_failure
 fi
 
-rmdir ${IPKG_OFFLINE_ROOT}/usr/palm/applications/`basename ${APP_DIR}` >/dev/null 2>&1
-
 #
 # Intialize / update the aupt control system
 #
@@ -589,12 +587,12 @@ rmdir ${IPKG_OFFLINE_ROOT}/usr/palm/applications/`basename ${APP_DIR}` >/dev/nul
 mkdir -p ${PATCH_CONTROL_DIR} >/dev/null 2>&1
 
 if [ -f ${PATCH_CONTROL_DIR}/backups ]; then
-  echo "ERROR: Old backup system detected, not supported by aupt-5!"
+  echo "ERROR: Old backup system detected, not supported by AUSMT!" | tee -a ${PATCH_LOG_FILE} 1>&2
   do_install_failure
 fi
 
 if [ -f ${PATCH_CONTROL_DIR}/packages ]; then
-  echo "ERROR: Old control system detected, not supported by aupt-5!"
+  echo "ERROR: Old control system detected, not supported by AUSMT!" | tee -a ${PATCH_LOG_FILE} 1>&2
   do_install_failure
 fi
 

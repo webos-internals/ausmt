@@ -1,0 +1,269 @@
+#!/bin/sh
+
+AUSMT_MODE=${1}
+
+#
+# Here starts the part where all the magic happens
+#
+
+IPKG_INFO_DIR=/usr/lib/ipkg/info
+
+PATCH_LOG_FILE=/media/internal/webos-ausmt.log
+PATCH_CONTROL_DIR=/var/usr/lib/.webosinternals.patches
+PATCH_PACKAGES_LIST=/media/internal/.webosinternals.patches.packages
+
+TWEAKS_PREFERENCES_DIR=/media/cryptofs/apps/usr/palm/services/org.webosinternals.tweaks.prefs/preferences
+
+#
+# Helper functions that do all the needed heavy work
+#
+
+do_cleanup_success() {
+  echo | tee -a ${PATCH_LOG_FILE}
+  echo "*** SUCCESS ***" | tee -a ${PATCH_LOG_FILE}
+  echo | tee -a ${PATCH_LOG_FILE}
+
+  mount -o ro,remount / | tee -a ${PATCH_LOG_FILE} 1>&2
+
+  exit 0
+}
+
+get_bck_file() {
+  bck_file=`dirname ${file}`"/."`basename ${file}`".orig"
+
+  if [ ! -f ${bck_file} ]; then
+    bck_file="${file}.webosinternals.orig"
+  fi
+}
+
+scan_sys_files() {
+  for i in `find ${dir} -type f -name '*.webosinternals.orig'` ; do
+    file=${i%.webosinternals.orig}
+
+    tmpvar=`grep "^${file} " ${PATCH_CONTROL_DIR}/file_list`
+
+    if [ -z "${tmpvar}" ]; then
+      echo "${file} ausmt-1" >>${PATCH_CONTROL_DIR}/file_list
+    fi
+  done
+}
+
+remove_ipkg_info() {
+  ipkg -o /var --force-depends remove ${package} >> ${PATCH_LOG_FILE}
+
+  ipkg -o /media/cryptofs/apps --force-depends remove ${package} >> ${PATCH_LOG_FILE}
+}
+
+find_palm_md5sum() {
+  palm_md5sum=""
+  pkg_package=""
+  pkg_version=""
+
+  md5sums_line=""
+
+  echo "Finding md5sum for original file" >> ${PATCH_LOG_FILE}
+  echo "  file: ${file}" >> ${PATCH_LOG_FILE}
+
+  check_cryptofs_lists
+
+  if [ ! -z "${md5sums_line}" ]; then
+    palm_md5sum=`echo ${md5sums_line} | awk '{print $1}'`
+
+    echo "Found md5sum from the cryptofs lists" >> ${PATCH_LOG_FILE}
+    echo "  md5sum: ${palm_md5sum}" >> ${PATCH_LOG_FILE}
+  else
+    echo "File not found in cryptofs lists, checking system md5sum files" >> ${PATCH_LOG_FILE}
+
+    md5sums_line=`grep "*.${file}$" ${IPKG_INFO_DIR}/*.md5sums`
+
+    if [ ! -z "${md5sums_line}" ]; then
+      pkg_package=`echo ${md5sums_line} | cut -d ':' -f 1`
+
+      palm_md5sum=`echo ${md5sums_line} | cut -d ':' -f 2 | awk '{print $1}'`
+
+      echo "Found md5sum from md5sums files" >> ${PATCH_LOG_FILE}
+      echo "  md5sum: ${palm_md5sum}" >> ${PATCH_LOG_FILE}
+    fi
+  fi
+}
+
+check_cryptofs_lists() {
+  file_line=`grep "^${file#${IPKG_OFFLINE_ROOT}}$" ${IPKG_OFFLINE_ROOT}/${IPKG_INFO_DIR}/*.list`
+
+  if [ ! -z "${file_line}" ]; then
+    get_bck_file
+
+    list_file=`echo "${file_line}" | cut -d ':' -f 1`
+
+    pkg_package=`basename ${list_file} .list`
+
+    control_file=`dirname ${list_file}`/${pkg_package}.control
+
+    pkg_version=`grep "^Version: " ${control_file} | awk '{print $2}'`
+
+    control_line=`grep "^${pkg_package} ${file} " ${PATCH_CONTROL_DIR}/file_control`
+
+    tmp_version=`echo ${control_line} | awk '{print $3}'`
+
+    if [ ! -f ${bck_file} ] || [ "${pkg_version}" != "${tmp_version}" ]; then
+      md5sums_line=`md5sum ${file} | awk '{print $1}'`" *.${file}"
+    else
+      md5sums_line=`md5sum ${bck_file} | awk '{print $1}'`" *.${file}"
+    fi
+  fi
+}
+
+#
+# Bunch of safety checks and required initializations
+#
+
+if [ ! -e ${PATCH_LOG_FILE} ]; then
+  echo "******* Patch Log Created by cleanup $(date) ************" > ${PATCH_LOG_FILE}
+fi
+
+mount -o rw,remount / | tee -a ${PATCH_LOG_FILE} 1>&2
+
+echo "" >> ${PATCH_LOG_FILE}
+echo "------------------------------------------------------" >> ${PATCH_LOG_FILE}
+echo "Emergency AUSMT Recovery $(date)" >> ${PATCH_LOG_FILE}
+echo "------------------------------------------------------" >> ${PATCH_LOG_FILE}
+
+if [ -z "${IPKG_OFFLINE_ROOT}" ]; then
+  echo "ERROR: IPKG_OFFLINE_ROOT must be supplied to the postinst" | tee -a ${PATCH_LOG_FILE} 1>&2
+
+  exit 1
+fi
+
+if [ -f ${PATCH_CONTROL_DIR}/backups ]; then
+  echo "WARNING: Old backup system detected, not supported by AUSMT!" | tee -a ${PATCH_LOG_FILE} 1>&2
+fi
+
+if [ -f ${PATCH_CONTROL_DIR}/packages ]; then
+  echo "WARNING: Old control system detected, not supported by AUSMT!" | tee -a ${PATCH_LOG_FILE} 1>&2
+fi
+
+#
+# The main function that controls all the magic stuff
+#
+
+if [ "${AUSMT_MODE}" = "full" ]; then
+  echo >> ${PATCH_LOG_FILE}
+  echo "----------------------------------" >> ${PATCH_LOG_FILE}
+  echo "Performing full recovery" >> ${PATCH_LOG_FILE}
+  echo "----------------------------------" >> ${PATCH_LOG_FILE}
+  echo >> ${PATCH_LOG_FILE}
+
+  echo "Scanning system directories..." | tee -a ${PATCH_LOG_FILE}
+
+  mkdir -p ${PATCH_CONTROL_DIR} >/dev/null 2>&1
+
+  for dir in /etc /usr ; do
+    echo "  scanning directory: ${dir}" >> ${PATCH_LOG_FILE}
+
+  	scan_system_files
+  done
+
+  if [ -d ${TWEAKS_PREFERENCES_DIR} ]; then
+    echo "Cleaning tweaks preferences..." | tee -a ${PATCH_LOG_FILE}
+
+    rm -f ${TWEAKS_PREFERENCES_DIR}/* >/dev/null 2>&1
+  fi
+else
+  echo >> ${PATCH_LOG_FILE}
+  echo "----------------------------------" >> ${PATCH_LOG_FILE}
+  echo "Performing basic recovery" >> ${PATCH_LOG_FILE}
+  echo "----------------------------------" >> ${PATCH_LOG_FILE}
+  echo >> ${PATCH_LOG_FILE}
+fi
+
+if [ -e ${PATCH_PACKAGES_LIST} ]; then
+  echo >> ${PATCH_LOG_FILE}
+  echo "----------------------------------" >> ${PATCH_LOG_FILE}
+  echo "Removing patch packages" >> ${PATCH_LOG_FILE}
+  echo "----------------------------------" >> ${PATCH_LOG_FILE}
+  echo >> ${PATCH_LOG_FILE}
+
+  echo "Removing patch packages..." | tee -a ${PATCH_LOG_FILE}
+
+  while read i ; do
+    package=`echo ${i} | awk '{print $1}'`
+
+    echo "  removing package: ${package}" >> ${PATCH_LOG_FILE}
+
+  	remove_ipkg_info
+  done < ${PATCH_PACKAGES_LIST}
+fi
+
+if [ -e ${PATCH_CONTROL_DIR}/file_list ]; then
+  echo >> ${PATCH_LOG_FILE}
+  echo "----------------------------------" >> ${PATCH_LOG_FILE}
+  echo "Restoring system files" >> ${PATCH_LOG_FILE}
+  echo "----------------------------------" >> ${PATCH_LOG_FILE}
+  echo >> ${PATCH_LOG_FILE}
+
+  echo "Restoring system files..." | tee -a ${PATCH_LOG_FILE}
+
+  while read i ; do
+    file=`echo ${i} | awk '{print $1}'`
+    version=`echo ${i} | awk '{print $2}'`
+
+    if [ -z "${version}" ]; then
+      version=aupt-1
+    fi
+
+    get_bck_file
+
+    echo "Checking file: ${file}" >> ${PATCH_LOG_FILE}
+    echo "  version: ${version}" >> ${PATCH_LOG_FILE}
+
+    if [ -f ${bck_file} ]; then
+      find_palm_md5sum
+
+      file_md5sum=`md5sum ${file} | awk '{print $1}'`
+
+      echo "  palm md5sum: ${palm_md5sum}" >> ${PATCH_LOG_FILE}
+      echo "  file md5sum: ${file_md5sum}" >> ${PATCH_LOG_FILE}
+
+      if [ ! -s ${bck_file} ]; then
+        if [ -z "${palm_md5sum}" ]; then
+          echo "Removing created file..." | tee -a ${PATCH_LOG_FILE}
+
+          rm -f ${file}
+        else
+          echo "Found md5sum for created file, assuming OTA" >> ${PATCH_LOG_FILE}
+        fi
+
+        echo "Removing backup file..." | tee -a ${PATCH_LOG_FILE}
+
+        rm -f ${bck_file}
+      else
+        if [ -z "${palm_md5sum}" ]; then
+          echo "Unable to find md5sum for file, assuming OTA" >> ${PATCH_LOG_FILE}
+
+          echo "Removing backup file..." | tee -a ${PATCH_LOG_FILE}
+
+          rm -f ${bck_file}
+        elif [ "${palm_md5sum}" = "${file_md5sum}" ]; then
+          echo "File matches original md5sum, assuming OTA" >> ${PATCH_LOG_FILE}
+
+          echo "Removing backup file..." | tee -a ${PATCH_LOG_FILE}
+
+          rm -f ${bck_file}
+        else
+          echo "Recovering original file..." | tee -a ${PATCH_LOG_FILE}
+
+          mv -f ${bck_file} ${file}
+        fi
+      fi
+    else
+      echo | tee -a ${PATCH_LOG_FILE} 1>&2
+      echo "WARNING: Could not find backup file!" | tee -a ${PATCH_LOG_FILE} 1>&2
+      echo | tee -a ${PATCH_LOG_FILE} 1>&2
+    fi
+  done < ${PATCH_CONTROL_DIR}/file_list
+fi
+
+rm -rf ${PATCH_CONTROL_DIR}
+rm -f ${PATCH_PACKAGES_LIST}
+
+do_cleanup_success
