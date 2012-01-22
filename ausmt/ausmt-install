@@ -59,6 +59,8 @@ fi
 #
 
 do_install_failure() {
+  ${PATCH_EXEC} -s -p1 -d / --dry-run < ${APP_DIR}/${PATCH_NAME} | tee -a $PATCH_LOG 1>&2
+
   echo | tee -a ${PATCH_LOG_FILE}
   echo "*** FAILED ***" | tee -a ${PATCH_LOG_FILE}
   echo | tee -a ${PATCH_LOG_FILE}
