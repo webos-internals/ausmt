@@ -159,7 +159,7 @@ if [ "${AUSMT_MODE}" = "full" ]; then
   for dir in /etc /usr ; do
     echo "  scanning directory: ${dir}" >> ${PATCH_LOG_FILE}
 
-  	scan_system_files
+    scan_system_files
   done
 
   if [ -d ${TWEAKS_PREFERENCES_DIR} ]; then
@@ -189,7 +189,7 @@ if [ -e ${PATCH_PACKAGES_LIST} ]; then
 
     echo "  removing package: ${package}" >> ${PATCH_LOG_FILE}
 
-  	remove_ipkg_info
+    remove_ipkg_info
   done < ${PATCH_PACKAGES_LIST}
 fi
 

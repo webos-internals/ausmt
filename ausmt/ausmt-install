@@ -29,7 +29,7 @@ if [ -z "${IPKG_OFFLINE_ROOT}" ]; then
 fi
 
 if [ -d ${APP_DIR}/files_replaceable ]; then
-	FILES_DIR=files_replaceable
+  FILES_DIR=files_replaceable
 fi
 
 PATCH_LOG_FILE=/media/internal/webos-ausmt.log
