@@ -255,6 +255,10 @@ if [ -e ${PATCH_CONTROL_DIR}/file_list ]; then
         fi
       fi
     else
+      if [ ! -f ${file} ]; then
+        echo "Unable to find original file, assuming OTA" >> ${PATCH_LOG_FILE}
+      fi
+
       if [ -f ${bck_file} ]; then
         echo "Removing backup file..." | tee -a ${PATCH_LOG_FILE}
 
@@ -263,10 +267,6 @@ if [ -e ${PATCH_CONTROL_DIR}/file_list ]; then
         echo | tee -a ${PATCH_LOG_FILE} 1>&2
         echo "WARNING: Could not find backup file!" | tee -a ${PATCH_LOG_FILE} 1>&2
         echo | tee -a ${PATCH_LOG_FILE} 1>&2
-      fi
-
-      if [ ! -f ${file} ]; then
-        echo "Unable to find original file, assuming OTA" >> ${PATCH_LOG_FILE}
       fi
     fi
   done < ${PATCH_CONTROL_DIR}/file_list
