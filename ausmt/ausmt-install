@@ -534,8 +534,7 @@ echo "AUSMT INSTALL $(date)" >> ${PATCH_LOG_FILE}
 echo "------------------------------------------------------" >> ${PATCH_LOG_FILE}
 echo >> ${PATCH_LOG_FILE}
 
-echo "${APP_DIR}" >> ${PATCH_LOG_FILE}
-echo >> ${PATCH_LOG_FILE}
+echo `basename ${APP_DIR}` >> ${PATCH_LOG_FILE}
 
 if [ -f ${APP_DIR}/${PATCH_NAME} ]; then
   echo "  contains text patch" >> ${PATCH_LOG_FILE}
@@ -648,4 +647,3 @@ install_tweaks_preferences
 do_install_success
 
 exit 0
-
