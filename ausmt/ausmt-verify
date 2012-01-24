@@ -1,0 +1,187 @@
+#!/bin/sh
+
+#
+# Here starts the part where all the magic happens
+#
+
+VERSIONS="aupt-3 aupt-4 ausmt-1"
+
+IPKG_INFO_DIR=/usr/lib/ipkg/info
+
+PATCH_LOG_FILE=/media/internal/webos-ausmt.log
+PATCH_CONTROL_DIR=/var/usr/lib/.webosinternals.patches
+PATCH_PACKAGES_LIST=/media/internal/.webosinternals.patches.packages
+
+#
+# Helper functions that do all the needed heavy work
+#
+
+do_verify_failure() {
+  echo | tee -a ${PATCH_LOG_FILE}
+  echo "*** FAILED ***" | tee -a ${PATCH_LOG_FILE}
+  echo | tee -a ${PATCH_LOG_FILE}
+
+  rm -f /var/webosinternals.failed
+  rm -f /var/webosinternals.md5sums
+
+  exit 1
+}
+
+do_verify_success() {
+  echo | tee -a ${PATCH_LOG_FILE}
+  echo "*** SUCCESS ***" | tee -a ${PATCH_LOG_FILE}
+  echo | tee -a ${PATCH_LOG_FILE}
+
+  rm -f /var/webosinternals.failed
+  rm -f /var/webosinternals.md5sums
+
+  exit 0
+}
+
+#
+# Bunch of safety checks and required initializations
+#
+
+if [ ! -e ${PATCH_LOG_FILE} ]; then
+  echo "******* Patch Log Created by Verify $(date) ************" > ${PATCH_LOG_FILE}
+fi
+
+echo >> ${PATCH_LOG_FILE}
+echo "------------------------------------------------------" >> ${PATCH_LOG_FILE}
+echo "AUSMT System Verification $(date)" >> ${PATCH_LOG_FILE}
+echo "------------------------------------------------------" >> ${PATCH_LOG_FILE}
+echo >> ${PATCH_LOG_FILE}
+
+#
+# The main function that controls all the magic stuff
+#
+
+if [ -f "${PATCH_PACKAGES_LIST}" ]; then
+  echo >> ${PATCH_LOG_FILE}
+  echo "----------------------------------" >> ${PATCH_LOG_FILE}
+  echo "Checking package versions" >> ${PATCH_LOG_FILE}
+  echo "----------------------------------" >> ${PATCH_LOG_FILE}
+  echo >> ${PATCH_LOG_FILE}
+
+  echo "Checking package versions..." | tee -a ${PATCH_LOG_FILE}
+
+  while read i ; do
+    package=`echo ${i} |awk '{print $1}'`
+    version=`echo ${i} |awk '{print $2}'`
+
+    if [ -z "${version}" ]; then
+      version="aupt-1"
+    fi
+
+    version_ok="no"
+
+    for v in ${VERSIONS} ; do
+      if [ "${version}" = "${v}" ]; then
+        version_ok="yes"
+      fi
+    done
+
+    if [ "${version_ok}" = "no" ]; then
+      OLD_PACKAGES="${OLD_PACKAGES} ${package}"
+
+      echo "Found package with unsupported version" | tee -a ${PATCH_LOG_FILE} 1>&2
+      echo "  package: ${package}" | tee -a ${PATCH_LOG_FILE} 1>&2
+      echo "  version: ${version}" | tee -a ${PATCH_LOG_FILE} 1>&2
+    fi
+  done < ${PATCH_PACKAGES_LIST}
+
+  if [ ! -z "${OLD_PACKAGES}" ]; then
+    echo >> ${PATCH_LOG_FILE}
+    echo "ERROR: Unsupported package versions detected" | tee -a ${PATCH_LOG_FILE} 1>&2
+    echo >> ${PATCH_LOG_FILE}
+
+    do_verify_failure
+  fi
+fi
+
+if [ -e /usr/bin/md5sum ]; then
+  echo >> ${PATCH_LOG_FILE}
+  echo "----------------------------------" >> ${PATCH_LOG_FILE}
+  echo "Verifying system files" >> ${PATCH_LOG_FILE}
+  echo "----------------------------------" >> ${PATCH_LOG_FILE}
+  echo >> ${PATCH_LOG_FILE}
+
+  echo "Verifying system files..." | tee -a ${PATCH_LOG_FILE}
+
+  rm -f /var/webosinternals.failed
+  rm -f /var/webosinternals.md5sums
+
+  cat ${IPKG_INFO_DIR}/*.md5sums > /var/webosinternals.md5sums
+
+  sed -i \
+      -e '/ \*\.\/usr\/palm\/applications\/.*\/framework_config.json/d' \
+      -e '/ \*\.\/var\/lib\/software\/tmp\/flashing-progress\.tga/d' \
+      -e '/ \*\.\/var\/lib\/update\/install-first-update\.sh/d' \
+      -e '/ \*\.\/var\/lib\/update\/install-first.sh/d' \
+      -e '/ \*\.\/usr\/local\/bin\/wifi-mfg-labtool/d' \
+      -e '/ \*\.\/var\/palm\/data\/smartkey\//d' \
+      -e '/ \*\.\/etc\/udev\/mount\.blacklist/d' \
+      -e '/ \*\.\/etc\/\.rootfs_RW/d' \
+      -e '/ \*\.\/lib\/modules\//d' \
+      -e '/ \*\.\/boot\//d' \
+      /var/webosinternals.md5sums
+
+  cd / && /usr/bin/md5sum -c /var/webosinternals.md5sums 2>/dev/null | \
+    grep -v OK > /var/webosinternals.failed
+
+  while read i ; do
+    backup_file=""
+    backup_version=""
+
+    file=`echo ${i} |awk -F: '{print $1}' |cut -d '.' -f2-`
+
+    if [ -e ${PATCH_CONTROL_DIR}/file_list ]; then
+      backup_file=`grep -h ${file} ${PATCH_CONTROL_DIR}/file_list`
+      backup_version=`echo ${backup_file} | awk '{print $2}'`
+    fi
+
+    if [ -z "${backup_version}" ]; then
+      backup_version="aupt-1"
+    fi
+
+    backup_good="no"
+
+    for v in ${VERSIONS} ; do
+      if [ "${backup_version}" = "${v}" ]; then
+        backup_good="yes"
+      fi
+    done
+
+    if [ -z "${backup_file}" ]; then
+      NO_BACKUP_FILES="${NO_BACKUP_FILES} ${file}"
+
+      echo "File modified with unsupported methods" | tee -a ${PATCH_LOG_FILE} 1>&2
+      echo "  file: ${file}" | tee -a ${PATCH_LOG_FILE} 1>&2
+    elif [ "${backup_good}" = "no" ]; then
+      OLD_BACKUP_FILES="${OLD_BACKUP_FILES} ${file}"
+
+      echo "Found backup file with unsupported version" | tee -a ${PATCH_LOG_FILE} 1>&2
+      echo "  file: ${file}" | tee -a ${PATCH_LOG_FILE} 1>&2
+    fi
+  done < /var/webosinternals.failed
+
+  if [ ! -z "${NO_BACKUP_FILES}" ]; then
+    echo >> ${PATCH_LOG_FILE}
+    echo "ERROR: Unsupported file modifications detected" | tee -a ${PATCH_LOG_FILE} 1>&2
+    echo >> ${PATCH_LOG_FILE}
+  fi
+
+  if [ ! -z "${OLD_BACKUP_FILES}" ]; then
+    echo >> ${PATCH_LOG_FILE}
+    echo "ERROR: Unsupported backup file versions detected" | tee -a ${PATCH_LOG_FILE} 1>&2
+    echo >> ${PATCH_LOG_FILE}
+  fi
+
+  if [ ! -z "${NO_BACKUP_FILES}" ] || [ ! -z "${OLD_BACKUP_FILES}" ]; then
+    do_verify_failure
+  fi
+fi
+
+do_verify_success
+
+exit 0

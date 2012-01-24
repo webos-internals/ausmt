@@ -118,15 +118,16 @@ check_cryptofs_lists() {
 #
 
 if [ ! -e ${PATCH_LOG_FILE} ]; then
-  echo "******* Patch Log Created by cleanup $(date) ************" > ${PATCH_LOG_FILE}
+  echo "******* Patch Log Created by Cleanup $(date) ************" > ${PATCH_LOG_FILE}
 fi
 
 mount -o rw,remount / | tee -a ${PATCH_LOG_FILE} 1>&2
 
-echo "" >> ${PATCH_LOG_FILE}
+echo >> ${PATCH_LOG_FILE}
 echo "------------------------------------------------------" >> ${PATCH_LOG_FILE}
-echo "Emergency AUSMT Recovery $(date)" >> ${PATCH_LOG_FILE}
+echo "AUSMT Recovery $(date)" >> ${PATCH_LOG_FILE}
 echo "------------------------------------------------------" >> ${PATCH_LOG_FILE}
+echo >> ${PATCH_LOG_FILE}
 
 if [ -z "${IPKG_OFFLINE_ROOT}" ]; then
   echo "ERROR: IPKG_OFFLINE_ROOT must be supplied for the cleanup" | tee -a ${PATCH_LOG_FILE} 1>&2
@@ -207,7 +208,7 @@ if [ -e ${PATCH_CONTROL_DIR}/file_list ]; then
     version=`echo ${i} | awk '{print $2}'`
 
     if [ -z "${version}" ]; then
-      version=aupt-1
+      version="aupt-1"
     fi
 
     get_bck_file
@@ -225,31 +226,40 @@ if [ -e ${PATCH_CONTROL_DIR}/file_list ]; then
 
       if [ ! -s ${bck_file} ]; then
         if [ -z "${palm_md5sum}" ]; then
-          echo "Removing created file..." | tee -a ${PATCH_LOG_FILE}
+          if [ "${AUSMT_MODE}" != "safe" ]; then
+            echo "Removing created or old system file" | tee -a ${PATCH_LOG_FILE}
+            echo "  file: ${file}" | tee -a ${PATCH_LOG_FILE}
 
-          rm -f ${file}
+            rm -f ${file}
+          fi
         else
           echo "Found md5sum for created file, assuming OTA" >> ${PATCH_LOG_FILE}
         fi
 
-        echo "Removing backup file..." | tee -a ${PATCH_LOG_FILE}
+        echo "Removing unneeded generated backup file" | tee -a ${PATCH_LOG_FILE}
+        echo "  file: ${bck_file}" | tee -a ${PATCH_LOG_FILE}
 
         rm -f ${bck_file}
       else
         if [ -z "${palm_md5sum}" ]; then
           echo "Unable to find md5sum for file, assuming OTA" >> ${PATCH_LOG_FILE}
 
-          echo "Removing backup file..." | tee -a ${PATCH_LOG_FILE}
+          if [ "${AUSMT_MODE}" != "safe" ]; then
+            echo "Removing unneeded backup of old system file" | tee -a ${PATCH_LOG_FILE}
+            echo "  file: ${bck_file}" | tee -a ${PATCH_LOG_FILE}
 
-          rm -f ${bck_file}
+            rm -f ${bck_file}
+          fi
         elif [ "${palm_md5sum}" = "${file_md5sum}" ]; then
           echo "File matches original md5sum, assuming OTA" >> ${PATCH_LOG_FILE}
 
-          echo "Removing backup file..." | tee -a ${PATCH_LOG_FILE}
+          echo "Removing unneeded backup of system file" | tee -a ${PATCH_LOG_FILE}
+          echo "  file: ${bck_file}" | tee -a ${PATCH_LOG_FILE}
 
           rm -f ${bck_file}
         else
-          echo "Recovering original file..." | tee -a ${PATCH_LOG_FILE}
+          echo "Recovering system file from backup file" | tee -a ${PATCH_LOG_FILE}
+          echo "  file: ${file}" | tee -a ${PATCH_LOG_FILE}
 
           mv -f ${bck_file} ${file}
         fi
@@ -260,13 +270,16 @@ if [ -e ${PATCH_CONTROL_DIR}/file_list ]; then
       fi
 
       if [ -f ${bck_file} ]; then
-        echo "Removing backup file..." | tee -a ${PATCH_LOG_FILE}
+        if [ "${AUSMT_MODE}" != "safe" ]; then
+          echo "Removing unneeded backup of removed system file" | tee -a ${PATCH_LOG_FILE}
+          echo "  file: ${bck_file}" | tee -a ${PATCH_LOG_FILE}
 
-        rm -f ${bck_file}
+          rm -f ${bck_file}
+        fi
       else
-        echo | tee -a ${PATCH_LOG_FILE} 1>&2
+        echo >> ${PATCH_LOG_FILE}
         echo "WARNING: Could not find backup file!" | tee -a ${PATCH_LOG_FILE} 1>&2
-        echo | tee -a ${PATCH_LOG_FILE} 1>&2
+        echo >> ${PATCH_LOG_FILE}
       fi
     fi
   done < ${PATCH_CONTROL_DIR}/file_list
@@ -276,3 +289,6 @@ rm -rf ${PATCH_CONTROL_DIR}
 rm -f ${PATCH_PACKAGES_LIST}
 
 do_cleanup_success
+
+exit 0
+

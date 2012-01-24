@@ -215,10 +215,10 @@ verify_text_patch() {
         find_palm_md5sum
 
         if [ -z "${palm_md5sum}" ]; then
-          echo  | tee -a ${PATCH_LOG_FILE} 1>&2
+          echo | tee -a ${PATCH_LOG_FILE} 1>&2
           echo "ERROR: Failed to find md5sum for the file" | tee -a ${PATCH_LOG_FILE} 1>&2
           echo "  file: ${file}" | tee -a ${PATCH_LOG_FILE} 1>&2
-          echo  | tee -a ${PATCH_LOG_FILE} 1>&2
+          echo | tee -a ${PATCH_LOG_FILE} 1>&2
 
           do_install_failure
         fi
@@ -272,10 +272,10 @@ verify_binary_patches() {
         file_md5sum=`md5sum ${file} | awk '{print $1}'`
 
         if [ -z "${palm_md5sum}" ]; then
-          echo  | tee -a ${PATCH_LOG_FILE} 1>&2
+          echo | tee -a ${PATCH_LOG_FILE} 1>&2
           echo "ERROR: Failed to find md5sum for the file" | tee -a ${PATCH_LOG_FILE} 1>&2
           echo "  file: ${file}" | tee -a ${PATCH_LOG_FILE} 1>&2
-          echo  | tee -a ${PATCH_LOG_FILE} 1>&2
+          echo | tee -a ${PATCH_LOG_FILE} 1>&2
 
           do_install_failure
         fi
@@ -283,20 +283,20 @@ verify_binary_patches() {
         if [ "${file_md5sum}" = "${palm_md5sum}" ]; then
           FILE_LIST="${FILE_LIST} ${file}"
         else
-          echo  | tee -a ${PATCH_LOG_FILE} 1>&2
+          echo | tee -a ${PATCH_LOG_FILE} 1>&2
           echo "ERROR: File must be stock to be binary patched" | tee -a ${PATCH_LOG_FILE} 1>&2
           echo "  file: ${file}" | tee -a ${PATCH_LOG_FILE} 1>&2
           echo "  md5sum: ${file_md5sum}" | tee -a ${PATCH_LOG_FILE} 1>&2
           echo "  palm_md5sum: ${palm_md5sum}" | tee -a ${PATCH_LOG_FILE} 1>&2
-          echo  | tee -a ${PATCH_LOG_FILE} 1>&2
+          echo | tee -a ${PATCH_LOG_FILE} 1>&2
 
           do_install_failure
         fi
       else
-        echo  | tee -a ${PATCH_LOG_FILE} 1>&2
+        echo | tee -a ${PATCH_LOG_FILE} 1>&2
         echo "ERROR: File to be binary patched does not exist" | tee -a ${PATCH_LOG_FILE} 1>&2
         echo "  file: ${file}" | tee -a ${PATCH_LOG_FILE} 1>&2
-        echo  | tee -a ${PATCH_LOG_FILE} 1>&2
+        echo | tee -a ${PATCH_LOG_FILE} 1>&2
 
         do_install_failure
       fi
@@ -330,10 +330,10 @@ verify_additional_files() {
           echo "  file: ${file}" | tee -a ${PATCH_LOG_FILE}
           echo | tee -a ${PATCH_LOG_FILE}
         elif [ "${FILES_DIR}" = "files_additional" ] || [ "${file_md5sum}" != "${palm_md5sum}" ]; then
-          echo  | tee -a ${PATCH_LOG_FILE} 1>&2
+          echo | tee -a ${PATCH_LOG_FILE} 1>&2
           echo "ERROR: Additional file already exists in system" | tee -a ${PATCH_LOG_FILE} 1>&2
           echo "  file: ${file}" | tee -a ${PATCH_LOG_FILE} 1>&2
-          echo  | tee -a ${PATCH_LOG_FILE} 1>&2
+          echo | tee -a ${PATCH_LOG_FILE} 1>&2
 
           do_install_failure
         fi
@@ -523,32 +523,41 @@ create_backup_files() {
 #
 
 if [ ! -f ${PATCH_LOG_FILE} ]; then
-  echo "*** Patch Log Created by install $(date) ***" > ${PATCH_LOG_FILE}
+  echo "*** Patch Log Created by Install $(date) ***" > ${PATCH_LOG_FILE}
 fi
 
 mount -o rw,remount / | tee -a ${PATCH_LOG_FILE} 1>&2
 
-echo  >> ${PATCH_LOG_FILE}
+echo >> ${PATCH_LOG_FILE}
 echo "------------------------------------------------------" >> ${PATCH_LOG_FILE}
-echo "PATCH INSTALLATION $(date)" >> ${PATCH_LOG_FILE}
+echo "AUSMT INSTALL $(date)" >> ${PATCH_LOG_FILE}
 echo "------------------------------------------------------" >> ${PATCH_LOG_FILE}
-echo  >> ${PATCH_LOG_FILE}
+echo >> ${PATCH_LOG_FILE}
+
+echo "${APP_DIR}" >> ${PATCH_LOG_FILE}
+echo >> ${PATCH_LOG_FILE}
 
 if [ -f ${APP_DIR}/${PATCH_NAME} ]; then
-  echo "Contains text patch: ${PATCH_NAME}" >> ${PATCH_LOG_FILE}
+  echo "  contains text patch" >> ${PATCH_LOG_FILE}
 fi
 
 if [ -d ${APP_DIR}/${BSPATCH_DIR} ]; then
-  echo "Contains binary patches" >> ${PATCH_LOG_FILE}
+  echo "  contains binary patches" >> ${PATCH_LOG_FILE}
 fi
 
 if [ -d ${APP_DIR}/${FILES_DIR} ]; then
-  echo "Contains additional files" >> ${PATCH_LOG_FILE}
+  if [ "${FILES_DIR}" = "files_additional" ]; then
+    echo "  contains additional files" >> ${PATCH_LOG_FILE}
+  elif [ "${FILES_DIR}" = "files_replaceable" ]; then
+    echo "  contains replaceable files" >> ${PATCH_LOG_FILE}
+  fi
 fi
 
 if [ -f ${APP_DIR}/${TWEAKS_NAME} ]; then
-  echo "Contains tweaks preferences: ${TWEAKS_NAME}" >> ${PATCH_LOG_FILE}
+  echo "  contains tweaks preferences" >> ${PATCH_LOG_FILE}
 fi
+
+echo >> ${PATCH_LOG_FILE}
 
 if [ ! -x ${PATCH_EXEC} ]; then
   echo "ERROR: Cannot find ${PATCH_EXEC}" | tee -a ${PATCH_LOG_FILE} 1>&2
